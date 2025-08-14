@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Хрестики-Нулики з ботом</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    /* Панель вибору символу */
+    #selection {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .btn-select {
+      display: inline-block;
+      padding: 10px 20px;
+      margin: 0 10px;
+      background-color: #0095DD;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 1em;
+      border-radius: 4px;
+    }
+    /* Ігрове поле */
+    #gameBoard {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-gap: 5px;
+      margin-bottom: 20px;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      background-color: #fff;
+      border: 2px solid #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2em;
+      cursor: pointer;
+      user-select: none;
+    }
+    #message {
+      font-size: 1.2em;
+      margin-bottom: 10px;
+    }
+    #reset {
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #0095DD;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+    }
+      }
+    .pelmeni {
+background-color: blanchedalmond;
+position: fixed;
+display: flex;
+width: 400px;
+height: 250px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Хрестики-Нулики з ботом</h1>
+  <!-- Панель вибору символу -->
+  <div id="selection">
+    <p>Виберіть, за ким грати:</p>
+    <button class="btn-select" id="playAsX">Грати як X</button>
+    <button class="btn-select" id="playAsO">Грати як O</button>
+  </div>
+
+  
+  <!-- Ігровий блок -->
+  <div id="gameContainer" style="display: none;">
+    <div id="gameBoard">
+      <div class="cell" data-index="0"></div>
+      <div class="cell" data-index="1"></div>
+      <div class="cell" data-index="2"></div>
+      <div class="cell" data-index="3"></div>
+      <div class="cell" data-index="4"></div>
+      <div class="cell" data-index="5"></div>
+      <div class="cell" data-index="6"></div>
+      <div class="cell" data-index="7"></div>
+      <div class="cell" data-index="8"></div>
+    </div>
+    <div id="message"></div>
+    <button id="reset">Перезапустити гру</button>
+  </div>
+  
+  <script>
+    // Отримання елементів із DOM
+    const selectionDiv = document.getElementById('selection');
+    const gameContainer = document.getElementById('gameContainer');
+    const cells = document.querySelectorAll('.cell');
+    const messageElem = document.getElementById('message');
+    const resetButton = document.getElementById('reset');
+    const playAsX = document.getElementById('playAsX');
+    const playAsO = document.getElementById('playAsO');
+
+    // Початкові налаштування
+    let board = ['', '', '', '', '', '', '', '', ''];
+    let human = 'X';
+    let bot = 'O';
+    let currentPlayer; // визначається при старті гри
+    let gameActive = true;
+    const winningConditions = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    // Старт гри з вибором символу
+    function startGame(selectedPlayer) {
+      human = selectedPlayer;
+      bot = (selectedPlayer === 'X') ? 'O' : 'X';
+      // Ховаємо вибір та показуємо ігровий блок
+      selectionDiv.style.display = 'none';
+      gameContainer.style.display = 'block';
+      // За замовчуванням X завжди починає гру
+      currentPlayer = 'X';
+      updateMessage();
+      // Якщо бот має X, він робить перший хід
+      if (bot === 'X') {
+        botMove();
+      }
+    }
+
+    playAsX.addEventListener('click', () => startGame('X'));
+    playAsO.addEventListener('click', () => startGame('O'));
+
+    function updateMessage() {
+      if (!gameActive) return;
+      messageElem.textContent = (currentPlayer === human)
+        ? 'Ваш хід (' + currentPlayer + ')'
+        : 'Хід бота (' + currentPlayer + ')';
+    }
+
+    // Обробка кліку користувача по клітинці
+    function handleCellClick(e) {
+      const index = e.target.getAttribute('data-index');
+      if (!gameActive || board[index] !== '' || currentPlayer !== human) return;
+      makeMove(index, human);
+      if (checkWinner(board, human)) {
+        messageElem.textContent = 'Ви перемогли!';
+        gameActive = false;
+        return;
+      } else if (isBoardFull(board)) {
+        messageElem.textContent = 'Нічия!';
+        gameActive = false;
+        return;
+      }
+      currentPlayer = bot;
+      updateMessage();
+      setTimeout(botMove, 500); // невелика затримка перед ходом бота
+    }
+
+    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+
+    // Функція виконання ходу
+    function makeMove(index, player) {
+      board[index] = player;
+      document.querySelector('.cell[data-index="' + index + '"]').textContent = player;
+    }
+
+    function isBoardFull(board) {
+      return board.every(cell => cell !== '');
+    }
+
+    // Перевірка на переможця
+    function checkWinner(b, player) {
+      return winningConditions.some(condition => {
+        return condition.every(index => b[index] === player);
+      });
+    }
+
+    // Хід бота із застосуванням алгоритму Мінімакс
+    function botMove() {
+      if (!gameActive) return;
+      let bestScore = -Infinity;
+      let move;
+      for (let i = 0; i < board.length; i++) {
+        if (board[i] === '') {
+          board[i] = bot;
+          let score = minimax(board, 0, false);
+          board[i] = '';
+          if (score > bestScore) {
+            bestScore = score;
+            move = i;
+          }
+        }
+      }
+      makeMove(move, bot);
+      if (checkWinner(board, bot)) {
+        messageElem.textContent = 'Бот переміг!';
+        gameActive = false;
+        return;
+      } else if (isBoardFull(board)) {
+        messageElem.textContent = 'Нічия!';
+        gameActive = false;
+        return;
+      }
+      currentPlayer = human;
+      updateMessage();
+    }
+
+    // Реалізація алгоритму Мінімакс
+    function minimax(newBoard, depth, isMaximizing) {
+      if (checkWinner(newBoard, bot)) {
+        return 10 - depth;
+      }
+      if (checkWinner(newBoard, human)) {
+        return depth - 10;
+      }
+      if (isBoardFull(newBoard)) {
+        return 0;
+      }
+      
+      if (isMaximizing) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < newBoard.length; i++) {
+          if (newBoard[i] === '') {
+            newBoard[i] = bot;
+            let score = minimax(newBoard, depth + 1, false);
+            newBoard[i] = '';
+            bestScore = Math.max(score, bestScore);
+          }
+        }
+        return bestScore;
+      } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < newBoard.length; i++) {
+          if (newBoard[i] === '') {
+            newBoard[i] = human;
+            let score = minimax(newBoard, depth + 1, true);
+            newBoard[i] = '';
+            bestScore = Math.min(score, bestScore);
+          }
+        }
+        return bestScore;
+      }
+    }
+
+    // Скидання гри
+    resetButton.addEventListener('click', resetGame);
+    function resetGame() {
+      board = ['', '', '', '', '', '', '', '', ''];
+      gameActive = true;
+      // Заповнюємо ігрове поле пустими клітинками
+      cells.forEach(cell => cell.textContent = '');
+      // X завжди починає гру, тому встановлюємо стартовий гравець відповідно до символів:
+      if (bot === 'X') {
+        currentPlayer = bot;
+        updateMessage();
+        setTimeout(botMove, 500);
+      } else {
+        currentPlayer = human;
+        updateMessage();
+      }
+    }
+  </script>
+    <div class="pelmeni"> 
+
+
+
+<h1> МІСЦЕ ДЛЯ РЕКЛАМИ 
+    telegram @Amogus980
+</h1>
+
+<img src="">
+
+
+
+
+  </div>
+</body>
+</html>
